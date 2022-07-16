@@ -26,11 +26,14 @@ class ParkingModels(models.Model):
         return self.plate
 
     def clean(self) -> None:
+        errors = dict()
         if self.departure_time is not None and self.paid is False:
-            raise ValidationError(ERR_DEPARTURE_NOT_PAID)
+            errors["paid"] = ValidationError(ERR_DEPARTURE_NOT_PAID)
         dt = ParkingModels.objects.filter(~Q(id=self.id) & 
                                           Q(plate=self.plate) &
                                           Q(departure_time=None))
         if len(dt) > 0:
-            raise ValidationError(ERR_DUPLICATED_NO_FINISHED)
+            errors["plate"] = ValidationError(ERR_DUPLICATED_NO_FINISHED)
+        if errors:
+            raise ValidationError(errors)
         super().clean()
