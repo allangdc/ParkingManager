@@ -1,9 +1,8 @@
 from datetime import datetime
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
-from parking import serializer
 from parking.models import ParkingModels
 from parking.serializer import ParkingSerializer
 
@@ -40,4 +39,4 @@ class ParkingViewSet(mixins.CreateModelMixin,
             serializer = self.get_serializer(obj)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
         except Exception as e:
-            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
+            raise ValidationError(str(e))

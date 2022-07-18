@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from parking.models import ParkingModels
 import datetime
+from freezegun import freeze_time
 
 ERR_MSG_DUPLICATED = "It is not possible to enter this data because the same " \
             "plate is in a record without having been finalized."
@@ -121,4 +122,48 @@ class ParkingViewSetTest(APITestCase):
         dt = ParkingModels.objects.get(id=parking.id)
         self.assertIsNone(dt.departure_time)
 
+    @freeze_time("2022-07-15 10:00:00")
+    def test_search_by_plate(self):
+        url = "/api/v1/parking/{}/"
+        PLATE = "ABC-1234"
+        DT_OUT = "2022-07-15 10:20:00"
+        ParkingModels.objects.create(plate=PLATE, paid=True, departure_time=DT_OUT)
+
+        ret = self.client.get(url.format(PLATE), format="json")
+        self.assertEqual(ret.status_code, status.HTTP_200_OK)
+        self.assertEqual(ret.data[0]["time"], "20 minutes")
+        self.assertTrue(ret.data[0]["left"])
+
+    def test_search_by_plate_with_no_departure(self):
+        url = "/api/v1/parking/{}/"
+        PLATE = "ABC-1234"
+
+        with freeze_time("2022-07-15 12:00:00"):
+            ParkingModels.objects.create(plate=PLATE)
+
+        with freeze_time("2022-07-15 12:01:00"): # 1 minute
+            ret = self.client.get(url.format(PLATE), format="json")
+            self.assertEqual(ret.status_code, status.HTTP_200_OK)
+            self.assertEqual(ret.data[0]["time"], "1 minute")
+            self.assertFalse(ret.data[0]["left"])
+
+    def test_invalid_notfound_search(self):
+        url = "/api/v1/parking/{}/"
+        PLATE = "ABC-1234"
+        NOTFOUND_PLATE = "ZZZ-9999"
+        ParkingModels.objects.create(plate=PLATE)
+
+        ret = self.client.get(url.format(NOTFOUND_PLATE), format="json")
+        self.assertEqual(ret.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_invalid_plate_format_search(self):
+        url = "/api/v1/parking/{}/"
+        PLATE = "ABC-1234"
+        invalid_plate_list = ["ABC_1234", "ABCD-1234", "ABC-12345", "AB-1234",
+                                "ABC-123", "ABC1234"]
+        ParkingModels.objects.create(plate=PLATE, paid=True)
+
+        for invplate in invalid_plate_list:
+            ret = self.client.get(url.format(invplate), format="json")
+            self.assertEqual(ret.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
