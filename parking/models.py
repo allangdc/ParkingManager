@@ -17,8 +17,8 @@ class ParkingModels(models.Model):
             ),
         ], db_index=True)
     paid = models.BooleanField(default=False)
-    arrival_time = models.DateTimeField(null=False)
-    departure_time = models.DateTimeField(null=True, blank=True)
+    arrival_time = models.DateTimeField(auto_now_add=True)
+    departure_time = models.DateTimeField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
